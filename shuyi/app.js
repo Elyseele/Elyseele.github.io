@@ -72,15 +72,29 @@
     return n;
   }
 
+  /* 给表格单元格补上列名，窄屏堆叠成卡片时用作前缀 */
+  function labelTables(root) {
+    $$("table", root).forEach(t => {
+      const ths = $$("thead th", t).map(x => x.textContent.trim());
+      if (!ths.length) return;
+      $$("tbody tr", t).forEach(tr => {
+        $$("td", tr).forEach((td, i) => {
+          if (!td.getAttribute("data-label")) td.setAttribute("data-label", ths[i] || "");
+        });
+      });
+    });
+  }
+
   /* 行间公式放不下时自动缩小字号，避免出现横向滚动条 */
   function fitMath(root) {
     const nodes = $$(".mth-display", root);
     nodes.forEach(el => {
       el.style.fontSize = "";
       if (!el.clientWidth) return;          // 折叠状态下量不到宽度，跳过
+      const floor = el.clientWidth < 420 ? 0.52 : 0.74;   // 竖屏允许缩更多
       let fs = 1;
-      for (let i = 0; i < 14 && el.scrollWidth > el.clientWidth + 2 && fs > 0.74; i++) {
-        fs = Math.max(0.74, fs - 0.03);
+      for (let i = 0; i < 20 && el.scrollWidth > el.clientWidth + 2 && fs > floor; i++) {
+        fs = Math.max(floor, fs - 0.03);
         el.style.fontSize = fs.toFixed(2) + "em";
       }
     });
@@ -136,6 +150,7 @@
     root.innerHTML = r.html;
     paintMath(root, r.bag);
     tidyOpts(root);
+    labelTables(root);
     fitMath(root);
   }
 
@@ -162,6 +177,7 @@
     box.innerHTML = r.html;
     paintMath(box, r.bag);
     tidyOpts(box);
+    labelTables(box);
     fitMath(box);
     return box;
   }

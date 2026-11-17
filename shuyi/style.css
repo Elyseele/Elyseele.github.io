@@ -150,9 +150,11 @@ main { overflow: auto; scroll-behavior: smooth; }
   background: var(--accent-soft); border-radius: 0 8px 8px 0;
 }
 #doc blockquote p { margin: .2em 0; }
-#doc table { width: 100%; border-collapse: collapse; margin: 1.1em 0; font-size: 13.5px; display: block; overflow-x: auto; }
+#doc table { width: 100%; border-collapse: collapse; margin: 1.1em 0; font-size: .98em; }
 #doc th, #doc td { border: 1px solid var(--line); padding: 7px 10px; text-align: left; vertical-align: top; }
-#doc th { background: var(--panel-2); font-weight: 600; white-space: nowrap; }
+#doc th { background: var(--panel-2); font-weight: 600; }
+#doc table .katex { font-size: 1.06em; }
+#doc td .katex { white-space: normal; }
 #doc tr:nth-child(even) td { background: color-mix(in srgb, var(--panel-2) 45%, transparent); }
 #doc code { font-family: var(--mono); font-size: .92em; background: var(--panel-2); padding: .1em .35em; border-radius: 4px; }
 #doc pre { background: var(--panel-2); padding: 12px 14px; border-radius: 8px; overflow: auto; }
@@ -189,7 +191,8 @@ main { overflow: auto; scroll-behavior: smooth; }
   background: var(--panel); border: 1px solid var(--line); color: var(--text);
   border-radius: 8px; padding: 5px 8px; font-size: 13px;
 }
-table.qtable { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+table.qtable { width: 100%; border-collapse: collapse; font-size: .96em; }
+table.qtable .katex { font-size: 1.06em; }
 table.qtable th { position: sticky; top: 0; background: var(--panel-2); }
 table.qtable th, table.qtable td { border-bottom: 1px solid var(--line); padding: 7px 9px; text-align: left; }
 table.qtable tr:hover td { background: var(--accent-soft); cursor: pointer; }
@@ -306,3 +309,40 @@ table.qtable input[type=checkbox] { cursor: pointer; }
 }
 #doc .rel.cross { border-style: dashed; }
 #doc .rel .rtopic { margin-right: 2px; }
+
+
+/* ---------- 手机竖屏（<=560px）---------- */
+@media (max-width: 560px) {
+  #doc { padding: 14px 13px 64px; }
+  #doc h1 { font-size: 22px; }
+  #doc h2 { font-size: 18px; margin-top: 1.4em; }
+  #doc h3 { font-size: 15.5px; }
+  .katex { font-size: 1.1em; }
+  #doc .mth-display { margin: .7em 0; }
+
+  /* 表格改成"每行一张卡"，彻底不需要横向滚动 */
+  #doc table, table.qtable { display: block; border: 0; font-size: .97em; }
+  #doc table thead, table.qtable thead { display: none; }
+  #doc table tbody, #doc table tr, #doc table td,
+  table.qtable tbody, table.qtable tr, table.qtable td { display: block; width: auto; }
+  #doc table tr, table.qtable tr {
+    border: 1px solid var(--line); border-radius: 10px;
+    padding: 8px 11px; margin: 8px 0; background: var(--panel);
+  }
+  #doc table td, table.qtable td {
+    border: 0; padding: 2px 0; background: none !important;
+    display: flex; gap: 8px; align-items: baseline;
+  }
+  #doc table td::before, table.qtable td::before {
+    content: attr(data-label);
+    flex: 0 0 68px; color: var(--text-2); font-size: 12px; line-height: 1.6;
+  }
+  #doc table td:empty { display: none; }
+  table.qtable td.st { width: auto; text-align: left; }
+
+  /* 侧栏在竖屏别占太高 */
+  #side { max-height: 38vh; }
+  #crumb { font-size: 12px; }
+  #pager { padding: 0 13px 40px; }
+  #pager .btn { font-size: 12px; }
+}
