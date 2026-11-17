@@ -1,8 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN" data-theme="light">
+<html lang="zh-CN" data-theme="light" data-fs="2">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
 <title>数一 · 大观学习台</title>
 <link rel="stylesheet" href="vendor/katex.min.css">
 <link rel="stylesheet" href="style.css">
@@ -17,8 +18,19 @@
   </div>
 </noscript>
 <div id="app">
+
+  <!-- 手机端顶栏：只留三个控件 -->
+  <header id="topbar">
+    <button id="menuBtn" class="icobtn" aria-label="打开目录">☰</button>
+    <button id="topTitle" class="topmid"><span id="topTopic">数一 · 大观</span><i>▾</i></button>
+    <button id="moreBtn" class="icobtn" aria-label="更多">⋯</button>
+  </header>
+
   <aside id="side">
-    <div class="brand">数一 · 大观<small>一元微分</small></div>
+    <div class="side-head">
+      <div class="brand">数一 · 大观<small id="brandSub">一元微分</small></div>
+      <button id="closeSide" class="icobtn" aria-label="关闭目录">✕</button>
+    </div>
     <div class="topicbar"><select id="topicSel"></select></div>
     <div class="views">
       <button data-view="kp">知识点</button>
@@ -29,6 +41,7 @@
       <input id="q" placeholder="搜索（按 / 聚焦）" autocomplete="off">
       <button id="clearq" title="清空">×</button>
     </div>
+    <button id="resume" class="resume" hidden></button>
     <div id="results" hidden></div>
     <nav id="tree"></nav>
     <footer id="foot">
@@ -41,11 +54,36 @@
       <button id="theme" title="切换深浅色">◐</button>
     </footer>
   </aside>
-  <main>
+  <div id="scrim" hidden></div>
+
+  <main id="main">
     <header id="crumb"></header>
     <article id="doc"></article>
     <nav id="pager"></nav>
   </main>
+
+  <!-- 手机端底部工具条 -->
+  <nav id="bottombar">
+    <button data-nav="prev" class="navbtn">‹ 上一题</button>
+    <span id="bbPos">—</span>
+    <button data-nav="next" class="navbtn">下一题 ›</button>
+    <button id="fsBtn" class="navbtn" title="阅读字号">Aa</button>
+  </nav>
+
+  <button id="toTop" hidden aria-label="回到顶部">↑</button>
+
+  <div id="fsheet" hidden>
+    <div class="sheet-card">
+      <div class="sheet-title">阅读字号</div>
+      <div class="fs-row" id="fsRow">
+        <button data-fs="1">小</button>
+        <button data-fs="2">标准</button>
+        <button data-fs="3">大</button>
+      </div>
+      <div class="sheet-tip">公式与正文一起缩放；单行公式太宽时可以左右滑动。</div>
+      <button id="fsClose" class="sheet-ok">好</button>
+    </div>
+  </div>
 </div>
 <script src="vendor/katex.min.js"></script>
 <script src="vendor/marked.min.js"></script>

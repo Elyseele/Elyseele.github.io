@@ -86,32 +86,22 @@
   }
 
   /* 行间公式放不下时自动缩小字号，避免出现横向滚动条 */
+  /* 公式排版原则：**绝不缩小字号**。太宽就允许横向滑动，并给一个 ⇄ 提示。 */
+  function markWide(el) {
+    if (!el || !el.clientWidth) return;
+    const wide = el.scrollWidth > el.clientWidth + 2;
+    el.classList.toggle("wide", wide);
+  }
   function fitMath(root) {
-    /* 行内公式：比所在段落还宽就缩一点，避免出现横向滚动 */
-    $$(".mth", root).forEach(el => {
-      if (el.classList.contains("mth-display")) return;
-      const p = el.parentElement;
-      if (!p || !p.clientWidth) return;
-      el.style.fontSize = "";
-      if (el.getBoundingClientRect().width <= p.clientWidth) return;
-      let fs = 1;
-      while (fs > 0.7 && el.getBoundingClientRect().width > p.clientWidth && fs > 0.7) {
-        fs -= 0.05;
-        el.style.fontSize = fs.toFixed(2) + "em";
-      }
-    });
-
-    const nodes = $$(".mth-display", root);
-    nodes.forEach(el => {
-      el.style.fontSize = "";
-      if (!el.clientWidth) return;          // 折叠状态下量不到宽度，跳过
-      const floor = el.clientWidth < 420 ? 0.52 : 0.74;   // 竖屏允许缩更多
-      let fs = 1;
-      for (let i = 0; i < 20 && el.scrollWidth > el.clientWidth + 2 && fs > floor; i++) {
-        fs = Math.max(floor, fs - 0.03);
-        el.style.fontSize = fs.toFixed(2) + "em";
-      }
-    });
+    $$(".mth-display, .mth", root).forEach(markWide);
+    if (!window.__shuyiWideBound) {
+      window.__shuyiWideBound = 1;
+      let t = 0;
+      window.addEventListener("resize", () => {
+        clearTimeout(t);
+        t = setTimeout(() => $$(".mth-display, .mth", $("#doc")).forEach(markWide), 160);
+      });
+    }
   }
 
   /* marked 不可用时的极简兜底渲染：至少保证正文可读 */
@@ -299,7 +289,7 @@
 
   function renderUnit(u) {
     const root = $("#doc");
-    if (u.book !== "ex") { render(u.md, root); relatedInto(root, u); return; }
+    if (u.book !== "ex") { render(u.md, root); miniToc(root); relatedInto(root, u); return; }
     const meta = metaOf(u.md);
     const parts = splitQ(meta.md);
     root.innerHTML = "";
@@ -308,6 +298,31 @@
     if (parts.hint) root.appendChild(wrapAcc(buildPart(parts.hint), "考点细则（先自己想）", "hint"));
     if (parts.sol) root.appendChild(wrapAcc(buildPart(parts.sol), "展开解析（解 + 答案）", "sol"));
     fitMath(root);
+  }
+
+  /* 长小节自动生成"本节目录"（正文 h3 足够多时才出） */
+  function miniToc(root) {
+    const hs = $$("h3", root);
+    if (hs.length < 5) return;
+    const d = document.createElement("details");
+    d.className = "minitoc";
+    const sm = document.createElement("summary");
+    sm.textContent = "本节目录（" + hs.length + " 项）";
+    d.appendChild(sm);
+    const ol = document.createElement("ol");
+    hs.forEach((h, i) => {
+      if (!h.id) h.id = "sec-" + i + "-" + Math.random().toString(36).slice(2, 6);
+      const li = document.createElement("li");
+      const a = document.createElement("a");
+      a.href = "#" + h.id;
+      a.textContent = h.textContent.trim().slice(0, 28);
+      a.onclick = ev => { ev.preventDefault(); h.scrollIntoView({ behavior: "smooth", block: "start" }); };
+      li.appendChild(a); ol.appendChild(li);
+    });
+    d.appendChild(ol);
+    const anchor = $$("h2", root)[0];
+    if (anchor && anchor.nextSibling) root.insertBefore(d, anchor.nextSibling);
+    else root.insertBefore(d, root.firstChild);
   }
 
   /* ================= 检索索引 ================= */
@@ -385,11 +400,11 @@
     sel.onchange = () => {
       S.topic = sel.value; store.set("topic", S.topic);
       S.unit = null;
-      drawViews();
+      drawViews(); drawTopTitle();
     };
   }
 
-  function drawTree() {
+  function drawTree(scrollToCur) {
     const nav = $("#tree"), list = navList();
     nav.innerHTML = "";
     let chap = null, sec = null;
@@ -405,9 +420,28 @@
         const open = isOpen(n.id);
         const row = document.createElement("div");
         row.className = "row grp depth-" + n.depth;
-        row.innerHTML = '<span class="caret">' + (open ? "▾" : "▸") + "</span><span class=\"lbl\">" + esc(n.title) + "</span>" +
+        let extra = "";
+        if (n.depth === 1 && S.view === "ex") {
+          const kids = list.filter(x => x.parent === n.id && x.unit);
+          const ids = kids.map(x => x.unit);
+          const ps = D.problems.filter(p => ids.indexOf(p.chapter) >= 0 || p.chapter === n.title);
+          const mine = D.problems.filter(p => p.topic === S.topic && p.chapter === n.title);
+          if (mine.length) {
+            const dn = mine.filter(p => S.done[p.id]).length;
+            extra = '<span class="cnt">' + dn + "/" + mine.length + "</span>";
+          }
+        }
+        row.innerHTML = '<span class="caret">' + (open ? "▾" : "▸") + "</span><span class=\"lbl\">" + esc(n.title) + "</span>" + extra +
           (n.unit && S.done[n.unit] ? '<span class="done">✓</span>' : "");
-        row.onclick = () => { setOpen(n.id, !open); drawTree(); };
+        row.onclick = () => {
+          const willOpen = !open;
+          // 手风琴：一级章节同时只展开一个，保证章节标题永远看得见
+          if (willOpen && n.depth === 1) {
+            list.filter(x => x.depth === 1 && (x.group || hasKids(list, x.id)) && x.id !== n.id)
+              .forEach(x => { delete S.open[x.id]; });
+          }
+          setOpen(n.id, willOpen); drawTree();
+        };
         nav.appendChild(row);
         return;
       }
@@ -420,6 +454,11 @@
       row.onclick = () => openUnit(n.unit, true);
       nav.appendChild(row);
     });
+
+    if (scrollToCur) {
+      const cur = nav.querySelector(".row.on");
+      if (cur && cur.scrollIntoView) { try { cur.scrollIntoView({ block: "center" }); } catch (e) {} }
+    }
 
     const p = $("#progress");
     if (S.view === "ex" && S.topic !== "all") {
@@ -434,14 +473,126 @@
 
   function hasKids(list, id) { return list.some(x => x.parent === id); }
 
-  /* ================= 主区 ================= */
-  function openUnit(id, push) {
+  /* ================= 导航 · 记忆 · 手机框架 ================= */
+
+  /* 当前滚动容器：宽屏滚 #main，窄屏滚页面 */
+  const isPhone = () => window.matchMedia && window.matchMedia("(max-width: 860px)").matches;
+  function getScroll() {
+    return isPhone() ? (window.scrollY || document.documentElement.scrollTop || 0) : ($("#main").scrollTop || 0);
+  }
+  function setScroll(y) {
+    if (isPhone()) window.scrollTo(0, y || 0);
+    else $("#main").scrollTop = y || 0;
+  }
+
+  /* 每个单元的阅读位置（sessionStorage，关掉浏览器即清） */
+  const scrollMem = (() => {
+    try { return JSON.parse(sessionStorage.getItem("shuyi.scroll") || "{}"); } catch (e) { return {}; }
+  })();
+  function saveScroll(id) {
+    if (!id) return;
+    scrollMem[id] = getScroll();
+    try { sessionStorage.setItem("shuyi.scroll", JSON.stringify(scrollMem)); } catch (e) {}
+  }
+
+  /* 最近浏览 */
+  function pushRecent(id) {
+    const list = store.get("recent", []).filter(x => x.id !== id);
+    list.unshift({ id: id, t: Date.now() });
+    store.set("recent", list.slice(0, 20));
+  }
+  function drawResume() {
+    const box = $("#resume");
+    if (!box) return;
+    const last = (store.get("recent", [])[0] || {}).id;
+    const u = last && D.units[last];
+    if (!u || last === S.unit) { box.hidden = true; return; }
+    box.hidden = false;
+    box.innerHTML = "继续上次阅读<b>" + esc(u.title) + " · " + esc(TT[u.topic] || "") + "</b>";
+    box.onclick = () => { goUnit(last); closeDrawer(); };
+  }
+
+  /* ---- 路由：#/u/<单元 id> ---- */
+  let routing = false;
+  function hashOf(id) { return "#/u/" + encodeURIComponent(id); }
+  function parseHash() {
+    const m = /^#\/u\/(.+)$/.exec(location.hash || "");
+    if (!m) return null;
+    try { return decodeURIComponent(m[1]); } catch (e) { return null; }
+  }
+  function goUnit(id) { openUnit(id, true); }
+
+  function onRoute() {
+    if (routing) return;
+    const id = parseHash() || ((history.state && history.state.shuyiUnit) || null) || S.home || null;
+    if (!id) return;
     const u = D.units[id];
     if (!u) return;
+    if (id === S.unit && S.view === u.book && S.topic === u.topic) return;
+    routing = true;
+    openUnit(id, false, true, true);
+    routing = false;
+  }
+
+  /* ---- 抽屉 ---- */
+  function openDrawer() {
+    if (!isPhone()) return;
+    document.body.classList.add("drawer");
+    $("#scrim").hidden = false;
+    try { history.pushState({ shuyiDrawer: 1 }, "", location.href); } catch (e) {}
+  }
+  function closeDrawer() {
+    document.body.classList.remove("drawer");
+    $("#scrim").hidden = true;
+  }
+
+  /* ---- 底部工具条 ---- */
+  function drawBottom(id) {
+    const bar = $("#bottombar");
+    if (!bar) return;
+    const list = flatList().filter(x => !/preface$/.test(x));
+    const i = list.indexOf(id);
+    const prev = i > 0 ? list[i - 1] : null;
+    const next = i >= 0 && i < list.length - 1 ? list[i + 1] : null;
+    const pb = bar.querySelector('[data-nav="prev"]'), nb = bar.querySelector('[data-nav="next"]');
+    pb.disabled = !prev; nb.disabled = !next;
+    pb.onclick = () => prev && goUnit(prev);
+    nb.onclick = () => next && goUnit(next);
+    const pos = $("#bbPos");
+    bar.style.display = S.view === "table" ? "none" : "";
+    pos.textContent = i >= 0 && list.length ? (i + 1) + " / " + list.length : "—";
+  }
+
+  /* ---- 顶栏标题 ---- */
+  function drawTopTitle() {
+    const t = $("#topTopic");
+    if (!t) return;
+    const v = S.view === "kp" ? "知识点" : S.view === "ex" ? "例题" : "总表";
+    t.textContent = (TT[S.topic] || "数一 · 大观") + " · " + v;
+    const sub = $("#brandSub");
+    if (sub) sub.textContent = TT[S.topic] || "";
+  }
+
+  /* ---- 阅读字号 ---- */
+  function applyFs(v) {
+    const n = String(v || "2");
+    document.documentElement.dataset.fs = n;
+    store.set("fs", n);
+    $$("#fsRow button").forEach(b => b.classList.toggle("on", b.dataset.fs === n));
+    setTimeout(() => { if (S.unit) fitMath($("#doc")); }, 60);
+  }
+
+  /* ================= 主区 ================= */
+  function openUnit(id, push, fromRoute, noHash) {
+    const u = D.units[id];
+    if (!u) return;
+    const prevId = S.unit;
+    if (prevId && prevId !== id) saveScroll(prevId);
     S.unit = id;
     if (push) store.set("unit", id);
     expandPath(id);
-    drawTree();
+    drawTree(true);
+    drawTopTitle();
 
     const crumbArr = [TT[u.topic] || "全部"].concat(u.crumbs);
     $("#crumb").innerHTML =
@@ -461,7 +612,15 @@
     };
 
     renderUnit(u);
-    $("#doc").parentElement.scrollTop = 0;
+    const keep = scrollMem[id];
+    setScroll(fromRoute || push || noHash ? (keep || 0) : 0);
+    if (!noHash && (fromRoute || push)) {
+      const want = hashOf(id);
+      if (location.hash !== want) { try { history.pushState({ shuyiUnit: id }, "", want); } catch (e) { location.hash = want; } }
+    }
+    pushRecent(id);
+    drawResume();
+    drawBottom(id);
     drawPager(id);
 
     const ab = $("#accBtn");
@@ -598,8 +757,74 @@
       rz = setTimeout(() => { if (S.unit) fitMath($("#doc")); }, 160);
     });
 
+    /* ---- 手机框架：抽屉 / 底栏 / 字号 / 回顶 ---- */
+    applyFs(store.get("fs", "2"));
+
+    const mb = $("#menuBtn"), cb = $("#closeSide"), sc = $("#scrim"), tt = $("#topTitle");
+    if (mb) mb.onclick = openDrawer;
+    if (tt) tt.onclick = openDrawer;
+    if (cb) cb.onclick = closeDrawer;
+    if (sc) sc.onclick = closeDrawer;
+
+    const sheet = $("#fsheet");
+    const openSheet = () => { if (sheet) { sheet.hidden = false; applyFs(document.documentElement.dataset.fs); } };
+    const closeSheet = () => { if (sheet) sheet.hidden = true; };
+    const fsb = $("#fsBtn"), more = $("#moreBtn"), fsc = $("#fsClose");
+    if (fsb) fsb.onclick = openSheet;
+    if (more) more.onclick = openSheet;
+    if (fsc) fsc.onclick = closeSheet;
+    if (sheet) sheet.onclick = ev => { if (ev.target === sheet) closeSheet(); };
+    $$("#fsRow button").forEach(b => (b.onclick = () => applyFs(b.dataset.fs)));
+
+    /* 字号面板里补一个深浅色开关 */
+    const card = $(".sheet-card");
+    if (card) {
+      const row = document.createElement("div");
+      row.className = "fs-row";
+      row.style.marginTop = "8px";
+      const tb = document.createElement("button");
+      tb.style.gridColumn = "span 3";
+      const syncTheme = () => (tb.textContent = document.documentElement.dataset.theme === "dark" ? "☾ 深色：开" : "☀ 深色：关");
+      syncTheme();
+      tb.onclick = () => {
+        const t = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+        document.documentElement.dataset.theme = t; store.set("theme", t); syncTheme();
+      };
+      row.appendChild(tb); card.insertBefore(row, $("#fsClose"));
+    }
+
+    /* 回顶 */
+    const top = $("#toTop");
+    if (top) top.onclick = () => setScroll(0);
+    let st = 0;
+    const onScroll = () => {
+      clearTimeout(st);
+      st = setTimeout(() => {
+        const y = getScroll();
+        if (top) top.hidden = y < 320;
+        if (S.unit) saveScroll(S.unit);
+      }, 120);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    const mEl = $("#main");
+    if (mEl) mEl.addEventListener("scroll", onScroll, { passive: true });
+
+    /* ---- 路由：浏览器返回键 ---- */
+    window.addEventListener("hashchange", onRoute);
+    window.addEventListener("popstate", () => {
+      if (document.body.classList.contains("drawer")) { closeDrawer(); return; }
+      onRoute();
+    });
+
     drawTopics();
     drawViews();
+    drawResume();
+
+    /* 冷启动：有 hash 就按 hash 打开，否则用上次位置 */
+    const bootId = parseHash();
+    if (bootId && D.units[bootId]) openUnit(bootId, true, true);
+    else if (S.unit && D.units[S.unit]) openUnit(S.unit, false, false);
+    S.home = S.unit || (flatList()[0] || null);
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
