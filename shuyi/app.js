@@ -87,6 +87,20 @@
 
   /* 行间公式放不下时自动缩小字号，避免出现横向滚动条 */
   function fitMath(root) {
+    /* 行内公式：比所在段落还宽就缩一点，避免出现横向滚动 */
+    $$(".mth", root).forEach(el => {
+      if (el.classList.contains("mth-display")) return;
+      const p = el.parentElement;
+      if (!p || !p.clientWidth) return;
+      el.style.fontSize = "";
+      if (el.getBoundingClientRect().width <= p.clientWidth) return;
+      let fs = 1;
+      while (fs > 0.7 && el.getBoundingClientRect().width > p.clientWidth && fs > 0.7) {
+        fs -= 0.05;
+        el.style.fontSize = fs.toFixed(2) + "em";
+      }
+    });
+
     const nodes = $$(".mth-display", root);
     nodes.forEach(el => {
       el.style.fontSize = "";
