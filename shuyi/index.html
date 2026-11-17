@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>数一 · 大观学习台</title>
+<meta name="theme-color" content="#2f6fd0">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="数一">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="stylesheet" href="vendor/katex.min.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<noscript>
+  <div style="max-width:640px;margin:40px auto;padding:20px;border:1px solid #d33;border-radius:10px;
+              font:15px/1.7 -apple-system,'PingFang SC','Microsoft YaHei',sans-serif;color:#333">
+    <b>这个页面需要执行 JavaScript。</b><br>
+    你现在看到这条提示，说明浏览器没有运行脚本——常见于 iOS「文件」App 的预览、部分文件管理器的内置查看器。
+    请用 <b>Safari / Chrome / Edge</b> 打开本文件，或改用网页地址访问。
+  </div>
+</noscript>
+<div id="app">
+  <aside id="side">
+    <div class="brand">数一 · 大观<small>一元微分</small></div>
+    <div class="topicbar"><select id="topicSel"></select></div>
+    <div class="views">
+      <button data-view="kp">知识点</button>
+      <button data-view="ex">例题</button>
+      <button data-view="table">题目总表</button>
+    </div>
+    <div class="searchbox">
+      <input id="q" placeholder="搜索（按 / 聚焦）" autocomplete="off">
+      <button id="clearq" title="清空">×</button>
+    </div>
+    <div id="results" hidden></div>
+    <nav id="tree"></nav>
+    <footer id="foot">
+      <div id="progress" style="display:none;display:flex;align-items:center;gap:8px;flex:1">
+        <div id="bar" style="flex:1"><i></i></div>
+        <span id="pbar">0 / 0</span>
+      </div>
+      <span id="progress-txt"></span>
+      <button id="autoAcc" title="解析默认展开 / 折叠">解析折叠</button>
+      <button id="theme" title="切换深浅色">◐</button>
+    </footer>
+  </aside>
+  <main>
+    <header id="crumb"></header>
+    <article id="doc"></article>
+    <nav id="pager"></nav>
+  </main>
+</div>
+<script src="vendor/katex.min.js"></script>
+<script src="vendor/marked.min.js"></script>
+<script src="data.js"></script>
+<script src="app.js"></script>
+<script>
+/* 启动自检：把"空白页"变成"看得见的原因"，方便在手机上定位问题 */
+(function () {
+  var errs = [];
+  window.addEventListener("error", function (e) {
+    errs.push((e.message || "脚本错误") + (e.filename ? " @" + e.filename.split("/").pop() + ":" + e.lineno : ""));
+  });
+  window.addEventListener("unhandledrejection", function (e) {
+    errs.push("Promise: " + ((e.reason && e.reason.message) || e.reason));
+  });
+  setTimeout(function () {
+    var tree = document.getElementById("tree");
+    if (tree && tree.children.length) return;          // 正常
+    var doc = document.getElementById("doc") || document.body;
+    var info = [
+      "环境自检",
+      "网址协议：" + location.protocol,
+      "浏览器：" + navigator.userAgent,
+      "题库已载入：" + (window.DATA ? "是（" + (window.DATA.problems || []).length + " 题）" : "否"),
+      "markdown 引擎：" + (typeof window.marked === "function" ? "正常" : "缺失"),
+      "公式引擎：" + (window.katex ? "正常" : "缺失"),
+      "报错：" + (errs.length ? errs.join(" ｜ ") : "无")
+    ].join("\n");
+    var box = document.createElement("pre");
+    box.style.cssText = "white-space:pre-wrap;font:13px/1.7 ui-monospace,Menlo,monospace;" +
+      "padding:16px;margin:16px;border:1px solid #d33;border-radius:10px;color:#b00;background:#fff8f8";
+    box.textContent = info;
+    if (document.getElementById("doc")) { document.getElementById("doc").innerHTML = ""; document.getElementById("doc").appendChild(box); }
+    else document.body.appendChild(box);
+  }, 3500);
+})();
+</script>
+<script>
+/* 注册离线缓存：首次访问后即可断网打开（新增到主屏幕后像一个 App） */
+if ("serviceWorker" in navigator && location.protocol.indexOf("http") === 0) {
+  window.addEventListener("load", function () {
+    navigator.serviceWorker.register("sw.js").catch(function () {});
+  });
+}
+</script>
+</body>
+</html>
