@@ -370,9 +370,18 @@
   function drawTopics() {
     const sel = $("#topicSel");
     if (!sel) return;
-    sel.innerHTML = TOPICS.map(t =>
-      '<option value="' + t.id + '"' + (t.id === S.topic ? " selected" : "") + '>' +
-      esc(t.title) + "（" + problemCount(t.id) + " 题）</option>").join("");
+    // 按科目分组（高数 / 概率论 / 线代…）
+    const groups = [];
+    TOPICS.forEach(t => {
+      const key = t.subject || "其他";
+      let g = groups.find(x => x.name === key);
+      if (!g) { g = { name: key, items: [] }; groups.push(g); }
+      g.items.push(t);
+    });
+    const opt = t => '<option value="' + t.id + '"' + (t.id === S.topic ? " selected" : "") + ">" +
+      esc(t.title) + "（" + problemCount(t.id) + " 题）</option>";
+    sel.innerHTML = groups.map(g =>
+      '<optgroup label="' + esc(g.name) + '">' + g.items.map(opt).join("") + "</optgroup>").join("");
     sel.onchange = () => {
       S.topic = sel.value; store.set("topic", S.topic);
       S.unit = null;
