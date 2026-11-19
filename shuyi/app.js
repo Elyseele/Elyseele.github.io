@@ -25,7 +25,8 @@
     fav: store.get("fav", {}),
     open: store.get("open", {}),
     autoOpen: store.get("autoOpen", false),
-    tableFilter: { chapter: "", kind: "", kp: "", text: "" }
+    tableFilter: { chapter: "", kind: "", kp: "", text: "" },
+    tfilter: store.get("tfilter", "all")
   };
 
   /* ================= Markdown + 公式 ================= */
@@ -42,7 +43,7 @@
     let html;
     if (canMarked) {
       try {
-        html = window.marked.parse(s, { gfm: true, breaks: false });
+        html = window.marked.parse(s, { gfm: true, breaks: true });
       } catch (e) {
         html = mdFallback(s);
       }
@@ -74,6 +75,16 @@
 
   /* 给表格单元格补上列名，窄屏堆叠成卡片时用作前缀 */
   function labelTables(root) {
+    /* 宽表：外面套一层横向滚动容器，避免把正文挤变形 */
+    $$("table", root).forEach(t => {
+      const p = t.parentNode;
+      if (p && !(p.classList && p.classList.contains("tblwrap"))) {
+        const w = document.createElement("div");
+        w.className = "tblwrap";
+        p.insertBefore(w, t);
+        w.appendChild(t);
+      }
+    });
     $$("table", root).forEach(t => {
       const ths = $$("thead th", t).map(x => x.textContent.trim());
       if (!ths.length) return;
@@ -405,7 +416,23 @@
   }
 
   function drawTree(scrollToCur) {
-    const nav = $("#tree"), list = navList();
+    const nav = $("#tree");
+    let list = navList();
+    // 知识点视图：按「全部 / 知识点 / 方法与技巧」过滤（单元带 tag=method 的算方法）
+    const bar = $("#treefilter");
+    if (bar) {
+      const kpView = S.view === "kp";
+      bar.style.display = kpView ? "" : "none";
+      $$("button", bar).forEach(b => b.classList.toggle("on", b.dataset.f === S.tfilter));
+      if (kpView && S.tfilter !== "all") {
+        list = list.filter(n => {
+          if (!n.unit) return true;
+          const u = D.units[n.unit] || {};
+          const isM = u.tag === "method";
+          return S.tfilter === "method" ? isM : !isM;
+        });
+      }
+    }
     nav.innerHTML = "";
     let chap = null, sec = null;
     list.forEach(n => {
@@ -434,7 +461,9 @@
             extra = '<span class="cnt">' + dn + "/" + mine.length + "</span>";
           }
         }
-        row.innerHTML = '<span class="caret">' + (open ? "▾" : "▸") + "</span><span class=\"lbl\">" + esc(n.title) + "</span>" + extra +
+        const meth = n.unit && D.units[n.unit] && D.units[n.unit].tag === "method";
+        row.innerHTML = '<span class="caret">' + (open ? "▾" : "▸") + "</span><span class=\"lbl\">" + esc(n.title) + "</span>" +
+          (meth ? '<span class="tag method">法</span>' : "") + extra +
           (n.unit && S.done[n.unit] ? '<span class="done">✓</span>' : "");
         row.onclick = () => {
           const willOpen = !open;
@@ -454,7 +483,9 @@
       if (!n.unit) return;
       const row = document.createElement("div");
       row.className = "row depth-" + n.depth + (S.unit === n.unit ? " on" : "");
+      const meth2 = D.units[n.unit] && D.units[n.unit].tag === "method";
       row.innerHTML = '<span class="caret"></span><span class="lbl">' + esc(n.title) + "</span>" +
+        (meth2 ? '<span class="tag method">法</span>' : "") +
         (S.done[n.unit] ? '<span class="done">✓</span>' : "");
       row.title = n.title;
       row.onclick = () => openUnit(n.unit, true);
@@ -716,6 +747,14 @@
   }
 
   /* ================= 视图 ================= */
+  function bindTreeFilter() {
+    const bar = $("#treefilter");
+    if (!bar) return;
+    $$("button", bar).forEach(b => {
+      b.onclick = () => { S.tfilter = b.dataset.f; store.set("tfilter", S.tfilter); drawTree(); };
+    });
+  }
+
   function drawViews() {
     $$(".views button").forEach(b => b.classList.toggle("on", b.dataset.view === S.view));
     $("#results").hidden = true;
@@ -823,6 +862,7 @@
     });
 
     drawTopics();
+    bindTreeFilter();
     drawViews();
     drawResume();
 

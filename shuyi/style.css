@@ -17,7 +17,7 @@
   --fs: 1.12;
   --fs-base: 15.5px;
   /* 公式相对正文的倍率：全站仅此一处，任何地方不得再单独覆写 .katex 的 font-size */
-  --math-scale: 1.18;
+  --math-scale: 1;
   --topbar-h: 48px;
   --bottombar-h: 52px;
 }
@@ -154,14 +154,18 @@ main { overflow: auto; scroll-behavior: smooth; }
 #doc h2 { font-size: 20px; margin: 1.8em 0 .6em; padding-bottom: .3em; border-bottom: 1px solid var(--line); }
 #doc h3 { font-size: 16.5px; margin: 1.5em 0 .5em; }
 #doc h4 { font-size: 15px; margin: 1.2em 0 .4em; color: var(--text-2); }
-#doc p { margin: .7em 0; }
+#doc p { margin: .7em 0; line-height: 1.95; }
+#doc li { line-height: 1.9; }
 #doc strong { font-weight: 650; }
 #doc blockquote {
   margin: 1em 0; padding: 10px 14px; border-left: 3px solid var(--accent);
   background: var(--accent-soft); border-radius: 0 8px 8px 0;
 }
 #doc blockquote p { margin: .2em 0; }
-#doc table { width: 100%; border-collapse: collapse; margin: 1.1em 0; font-size: .98em; }
+#doc .tblwrap { margin: 1.1em 0; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+#doc .tblwrap::-webkit-scrollbar { height: 5px; }
+#doc .tblwrap::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
+#doc table { width: 100%; border-collapse: collapse; margin: 0; font-size: 1em; }
 #doc th, #doc td { border: 1px solid var(--line); padding: 7px 10px; text-align: left; vertical-align: top; }
 #doc th { background: var(--panel-2); font-weight: 600; }
 #doc td .katex { white-space: normal; }
@@ -196,6 +200,15 @@ main { overflow: auto; scroll-behavior: smooth; }
 }
 .tag.selfmade { color: var(--accent); }
 .tag.block { color: var(--text-2); }
+.tag.method { color: var(--warn); border-color: var(--warn); font-size: 10.5px; padding: 0 6px; }
+.row .tag.method { margin-left: 6px; }
+/* 侧栏：知识点/方法 过滤 */
+.treefilter { display: flex; gap: 6px; padding: 0 12px 8px; }
+.treefilter button {
+  flex: 1; padding: 5px 0; font-size: 12px; cursor: pointer; border-radius: 7px;
+  background: var(--panel); border: 1px solid var(--line); color: var(--text-2);
+}
+.treefilter button.on { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
 
 /* 题目总表 */
 .filters { display: flex; gap: 8px; flex-wrap: wrap; margin: 4px 0 16px; }
