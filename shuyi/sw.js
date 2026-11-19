@@ -1,5 +1,5 @@
 /* 数一学习台 · 离线缓存（改内容后把 VERSION 加一即可让旧缓存失效） */
-const VERSION = "shuyi-202611192009";
+const VERSION = "shuyi-202611192017";
 const CORE = [
   "./",
   "./index.html",

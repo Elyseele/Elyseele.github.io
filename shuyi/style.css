@@ -180,7 +180,7 @@ main { overflow: auto; scroll-behavior: smooth; }
 #doc .mth { display: inline-block; }
 #doc .mth-display {
   display: block; width: 100%; box-sizing: border-box;
-  text-align: center; margin: .85em 0; padding: 2px 2px 6px;
+  text-align: left; margin: .85em 0; padding: 2px 0 6px 2px;
   overflow-x: auto; overflow-y: hidden;
   scrollbar-width: thin;
 }
