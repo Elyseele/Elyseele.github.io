@@ -416,7 +416,9 @@
         : (!chap || (isOpen(chap.id) && sec && isOpen(sec.id)));
       if (!visible) return;
 
-      if (n.group || (n.depth === 2 && hasKids(list, n.id))) {
+      /* 可折叠行：真正的章节点（group）或任何有子项的节点——
+         概统/线代按章拆开后，板块要点是「一级 + 有子项」，也必须能展开 */
+      if (n.group || hasKids(list, n.id)) {
         const open = isOpen(n.id);
         const row = document.createElement("div");
         row.className = "row grp depth-" + n.depth;
@@ -425,7 +427,8 @@
           const kids = list.filter(x => x.parent === n.id && x.unit);
           const ids = kids.map(x => x.unit);
           const ps = D.problems.filter(p => ids.indexOf(p.chapter) >= 0 || p.chapter === n.title);
-          const mine = D.problems.filter(p => p.topic === S.topic && p.chapter === n.title);
+          let mine = D.problems.filter(p => p.topic === S.topic && p.chapter === n.title);
+          if (!mine.length) mine = D.problems.filter(p => p.topic === S.topic && p.section === n.title);
           if (mine.length) {
             const dn = mine.filter(p => S.done[p.id]).length;
             extra = '<span class="cnt">' + dn + "/" + mine.length + "</span>";
@@ -435,12 +438,15 @@
           (n.unit && S.done[n.unit] ? '<span class="done">✓</span>' : "");
         row.onclick = () => {
           const willOpen = !open;
-          // 手风琴：一级章节同时只展开一个，保证章节标题永远看得见
-          if (willOpen && n.depth === 1) {
-            list.filter(x => x.depth === 1 && (x.group || hasKids(list, x.id)) && x.id !== n.id)
+          // 手风琴只对"真正的章节点"生效；拍平后的一级板块彼此独立展开
+          if (willOpen && n.depth === 1 && n.group) {
+            list.filter(x => x.depth === 1 && x.group && x.id !== n.id)
               .forEach(x => { delete S.open[x.id]; });
           }
-          setOpen(n.id, willOpen); drawTree();
+          setOpen(n.id, willOpen);
+          // 板块要点本身有正文：展开时顺手把它的正文打开（openUnit 会重画树）
+          if (willOpen && n.unit && !n.group) { openUnit(n.unit, true); return; }
+          drawTree();
         };
         nav.appendChild(row);
         return;
