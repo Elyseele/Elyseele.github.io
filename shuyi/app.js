@@ -844,7 +844,6 @@
     document.addEventListener("keydown", e => {
       if (e.key === "/" && document.activeElement !== q) { e.preventDefault(); q.focus(); }
     });
-
     let rz = null;
     window.addEventListener("resize", () => {
       clearTimeout(rz);
