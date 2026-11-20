@@ -175,6 +175,14 @@ main { overflow: auto; scroll-behavior: smooth; }
 #doc th, #doc td { border: 1px solid var(--line); padding: 7px 10px; text-align: left; vertical-align: top; }
 #doc th { background: var(--panel-2); font-weight: 600; }
 #doc td .katex { white-space: normal; }
+
+/* 示意图（内联 SVG，跟随主题色） */
+#doc figure.fig { margin: 1.1em 0; }
+#doc figure.fig .fig-svg { display: block; width: 100%; height: auto; max-height: 300px; }
+#doc figure.fig figcaption {
+  margin-top: 2px; font-size: 12.5px; line-height: 1.6; color: var(--text-2); text-align: center;
+}
+
 #doc tr:nth-child(even) td { background: color-mix(in srgb, var(--panel-2) 45%, transparent); }
 #doc code { font-family: var(--mono); font-size: .92em; background: var(--panel-2); padding: .1em .35em; border-radius: 4px; }
 #doc pre { background: var(--panel-2); padding: 12px 14px; border-radius: 8px; overflow: auto; }
