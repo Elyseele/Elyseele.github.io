@@ -13,17 +13,16 @@
   --shadow: 0 1px 2px rgba(20, 30, 50, .06), 0 8px 24px rgba(20, 30, 50, .06);
   --radius: 10px;
   --mono: ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, Consolas, monospace;
-  /* 阅读字号：100% / 112%（默认）/ 125%，公式与正文一起缩放 */
-  --fs: 1.12;
+  /* 四类字号各自独立：正文 / 普通公式 / 表格文字 / 表格内公式。
+     全部以 --fs-base 为基准，互不相乘。 */
+  --fs-body: 1.12;
+  --fs-math: 1.12;
+  --fs-table: 1;
+  --fs-table-math: 1.12;
   --fs-base: 15.5px;
-  /* 公式相对正文的倍率：全站仅此一处，任何地方不得再单独覆写 .katex 的 font-size */
-  --math-scale: 1;
   --topbar-h: 48px;
   --bottombar-h: 52px;
 }
-:root[data-fs="1"] { --fs: 1; }
-:root[data-fs="2"] { --fs: 1.12; }
-:root[data-fs="3"] { --fs: 1.25; }
 :root[data-theme="dark"] {
   --bg: #14171c;
   --panel: #1b1f26;
@@ -46,7 +45,7 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font: calc(var(--fs-base) * var(--fs))/1.8 -apple-system, "Segoe UI", "Noto Sans CJK SC",
+  font: calc(var(--fs-base) * var(--fs-body))/1.8 -apple-system, "Segoe UI", "Noto Sans CJK SC",
         "Source Han Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
   -webkit-font-smoothing: antialiased;
 }
@@ -130,7 +129,14 @@ footer#foot {
 }
 #bar { flex: 1; height: 6px; border-radius: 99px; background: var(--panel-2); overflow: hidden; }
 #bar i { display: block; height: 100%; width: 0; background: var(--ok); transition: width .3s; }
-#theme { background: none; border: 1px solid var(--line); border-radius: 7px; cursor: pointer; padding: 2px 7px; color: var(--text-2); }
+#autoAcc, #theme {
+  background: none; border: 1px solid var(--line); border-radius: 7px;
+  cursor: pointer; padding: 2px 7px; color: var(--text-2);
+  -webkit-tap-highlight-color: transparent;
+}
+#autoAcc:hover, #theme:hover { color: var(--accent); border-color: var(--accent); }
+#autoAcc:focus-visible, #theme:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+#autoAcc:disabled, #theme:disabled { opacity: .45; cursor: not-allowed; }
 
 /* ---------- 主区 ---------- */
 main { overflow: auto; scroll-behavior: smooth; }
@@ -165,7 +171,7 @@ main { overflow: auto; scroll-behavior: smooth; }
 #doc .tblwrap { margin: 1.1em 0; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 #doc .tblwrap::-webkit-scrollbar { height: 5px; }
 #doc .tblwrap::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
-#doc table { width: 100%; border-collapse: collapse; margin: 0; font-size: 1em; }
+#doc table { width: 100%; border-collapse: collapse; margin: 0; font-size: calc(var(--fs-base) * var(--fs-table)); }
 #doc th, #doc td { border: 1px solid var(--line); padding: 7px 10px; text-align: left; vertical-align: top; }
 #doc th { background: var(--panel-2); font-weight: 600; }
 #doc td .katex { white-space: normal; }
@@ -180,17 +186,38 @@ main { overflow: auto; scroll-behavior: smooth; }
 #doc .mth { display: inline-block; }
 #doc .mth-display {
   display: block; width: 100%; box-sizing: border-box;
-  text-align: left; margin: .85em 0; padding: 2px 0 6px 2px;
+  text-align: center; margin: .85em 0; padding: 2px 0 6px 2px;
   overflow-x: auto; overflow-y: hidden;
   scrollbar-width: thin;
+}
+/* 正常宽度整体居中；超宽时块从容器左端起算，滚动从首列开始 */
+#doc .mth-display > .katex-display {
+  width: max-content; min-width: 100%; text-align: center;
 }
 #doc .mth-display { overscroll-behavior-x: contain; }
 #doc .mth-display::-webkit-scrollbar { height: 5px; }
 #doc .mth-display::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
 #doc .mth-display::-webkit-scrollbar-track { background: transparent; }
-/* —— 公式字号：全站唯一来源 —— */
-.katex { font-size: calc(1em * var(--math-scale)); }
+/* —— 公式字号：普通公式与表格内公式各走一套基准，避免倍乘 —— */
+.katex { font-size: calc(var(--fs-base) * var(--fs-math)); }
 .katex-display { margin: .6em 0; font-size: 1em; }
+#doc table .katex, table.qtable .katex { font-size: calc(var(--fs-base) * var(--fs-table-math)); }
+
+/* 常用统计量：局部三栏，宽度不足时整项换行；只约束这一组，不影响其它公式 */
+.stat-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: 10px; margin: 1em 0 1.2em; align-items: stretch;
+}
+.stat-item {
+  min-width: 0; padding: 10px 12px; border: 1px solid var(--line);
+  border-radius: 10px; background: var(--panel);
+}
+.stat-head {
+  display: flex; align-items: baseline; gap: 6px;
+  font-size: 13.5px; font-weight: 600; color: var(--text);
+}
+.stat-no { flex: none; color: var(--accent); font-weight: 700; }
+.stat-item .mth-display { margin: .35em 0 .15em; padding-bottom: 2px; }
 
 /* 题目卡 */
 .q-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -216,7 +243,7 @@ main { overflow: auto; scroll-behavior: smooth; }
   background: var(--panel); border: 1px solid var(--line); color: var(--text);
   border-radius: 8px; padding: 5px 8px; font-size: 13px;
 }
-table.qtable { width: 100%; border-collapse: collapse; font-size: .96em; }
+table.qtable { width: 100%; border-collapse: collapse; font-size: calc(var(--fs-base) * var(--fs-table)); }
 table.qtable th { position: sticky; top: 0; background: var(--panel-2); }
 table.qtable th, table.qtable td { border-bottom: 1px solid var(--line); padding: 7px 9px; text-align: left; }
 table.qtable tr:hover td { background: var(--accent-soft); cursor: pointer; }
@@ -261,7 +288,7 @@ table.qtable input[type=checkbox] { cursor: pointer; }
 #doc details.acc > .part > blockquote { margin: .6em 0 .2em; }
 #doc details.acc > .part > *:first-child { margin-top: .7em; }
 #autoAcc { font-size: 11.5px; padding: 2px 7px; }
-#autoAcc.on { color: var(--accent); border-color: var(--accent); }
+#autoAcc.on { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
 @media print {
   #doc details.acc { break-inside: avoid; }
   #doc details.acc > summary { display: none; }
@@ -348,7 +375,7 @@ table.qtable input[type=checkbox] { cursor: pointer; }
   #doc .mth-display { margin: .7em 0; }
 
   /* 表格改成"每行一张卡"，彻底不需要横向滚动 */
-  #doc table, table.qtable { display: block; border: 0; font-size: .97em; }
+  #doc table, table.qtable { display: block; border: 0; font-size: calc(var(--fs-base) * var(--fs-table)); }
   #doc table thead, table.qtable thead { display: none; }
   #doc table tbody, #doc table tr, #doc table td,
   table.qtable tbody, table.qtable tr, table.qtable td { display: block; width: auto; }
@@ -395,8 +422,44 @@ table.qtable input[type=checkbox] { cursor: pointer; }
   background: rgba(10, 14, 22, .42); backdrop-filter: blur(1px);
 }
 
-/* 底部工具条 / 回顶 / 字号面板：桌面隐藏 */
-#bottombar, #toTop, #fsheet { display: none; }
+/* 底部工具条 / 回顶：桌面隐藏；字号面板桌面也可用 */
+#bottombar, #toTop { display: none; }
+
+/* 字号面板（桌面居中，手机底部弹出） */
+#fsheet {
+  position: fixed; inset: 0; z-index: 60;
+  align-items: center; justify-content: center; padding: 20px;
+  background: rgba(10, 14, 22, .42);
+}
+#fsheet:not([hidden]) { display: flex; }
+.sheet-card {
+  width: min(440px, 100%); max-height: min(86vh, 640px); overflow: auto;
+  background: var(--panel); border-radius: 16px;
+  padding: 18px; box-shadow: var(--shadow);
+}
+.sheet-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.sheet-title { flex: 1; font-size: 14px; font-weight: 700; color: var(--text); }
+#fsCloseX {
+  width: 32px; height: 32px; border: 0; border-radius: 8px; cursor: pointer;
+  background: var(--panel-2); color: var(--text-2); font-size: 15px;
+}
+.fs-controls { display: grid; gap: 12px; margin: 4px 0 14px; }
+.fs-row { margin-top: 8px; }
+.fs-row button {
+  width: 100%; padding: 10px 12px; border-radius: 10px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--panel-2); color: var(--text); font-size: 13px;
+}
+.fs-ctl {
+  display: grid; grid-template-columns: 72px minmax(0, 1fr) 48px;
+  align-items: center; gap: 10px; font-size: 13px; color: var(--text-2);
+}
+.fs-ctl input[type="range"] { width: 100%; accent-color: var(--accent); cursor: pointer; }
+.fs-ctl output { text-align: right; color: var(--text); font-variant-numeric: tabular-nums; font-size: 12.5px; }
+.sheet-tip { margin: 0 0 14px; font-size: 12px; color: var(--text-2); line-height: 1.6; }
+.sheet-actions { display: flex; gap: 8px; }
+.sheet-actions button { border-radius: 11px; cursor: pointer; font-size: 14px; padding: 11px 12px; }
+#fsReset { flex: 1; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); }
+.sheet-ok { flex: 2; border: 0; background: var(--accent); color: #fff; font-weight: 600; }
 
 /* 继续上次 */
 .resume {
@@ -482,12 +545,14 @@ table.qtable input[type=checkbox] { cursor: pointer; }
     backdrop-filter: blur(8px); border-top: 1px solid var(--line);
   }
   .navbtn {
-    background: none; border: 0; color: var(--text); cursor: pointer;
+    background: transparent; border: 0; color: var(--text); cursor: pointer;
     font-size: 13px; padding: 10px 4px; border-radius: 9px;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    -webkit-tap-highlight-color: transparent;
   }
-  .navbtn:active { background: var(--panel-2); }
-  .navbtn:disabled { color: var(--text-2); opacity: .4; }
+  .navbtn:active { background: var(--panel-2); color: var(--text); }
+  .navbtn:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .navbtn:disabled { background: transparent; color: var(--text-2); opacity: .45; cursor: default; }
   #bbPos { font-size: 12px; color: var(--text-2); font-variant-numeric: tabular-nums; }
   #fsBtn { width: 42px; font-size: 14px; font-weight: 600; }
 
@@ -500,28 +565,11 @@ table.qtable input[type=checkbox] { cursor: pointer; }
     box-shadow: var(--shadow); font-size: 16px; cursor: pointer;
   }
 
-  /* 字号面板 */
-  #fsheet {
-    display: flex; position: fixed; inset: 0; z-index: 60;
-    align-items: flex-end; background: rgba(10, 14, 22, .42);
-  }
-  #fsheet[hidden] { display: none; }
+  #fsBtnDesk { display: none; }
+  /* 字号面板：手机从底部弹出，控件样式沿用桌面 */
+  #fsheet { align-items: flex-end; padding: 0; }
   .sheet-card {
-    width: 100%; background: var(--panel); border-radius: 16px 16px 0 0;
+    width: 100%; max-height: 90vh; border-radius: 16px 16px 0 0;
     padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px));
-    box-shadow: var(--shadow);
-  }
-  .sheet-title { font-size: 13px; font-weight: 600; color: var(--text-2); margin-bottom: 10px; }
-  .fs-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-  .fs-row button {
-    padding: 12px 0; border-radius: 11px; cursor: pointer;
-    border: 1px solid var(--line); background: var(--panel-2); color: var(--text);
-    font-size: 14px;
-  }
-  .fs-row button.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); font-weight: 600; }
-  .sheet-tip { margin: 12px 0 14px; font-size: 12px; color: var(--text-2); line-height: 1.6; }
-  .sheet-ok {
-    width: 100%; padding: 12px 0; border-radius: 11px; border: 0;
-    background: var(--accent); color: #fff; font-size: 15px; font-weight: 600; cursor: pointer;
   }
 }

@@ -610,13 +610,59 @@
     if (sub) sub.textContent = TT[S.topic] || "";
   }
 
-  /* ---- 阅读字号 ---- */
-  function applyFs(v) {
-    const n = String(v || "2");
-    document.documentElement.dataset.fs = n;
-    store.set("fs", n);
-    $$("#fsRow button").forEach(b => b.classList.toggle("on", b.dataset.fs === n));
+  /* ---- 阅读字号：正文 / 普通公式 / 表格文字 / 表格内公式，各自独立 ---- */
+  const FONT_DEFAULTS = { body: 1.12, math: 1.12, table: 1, tableMath: 1.12 };
+  const FONT_KEYS = ["body", "math", "table", "tableMath"];
+  const FONT_MIN = { body: .9, math: .85, table: .85, tableMath: .85 };
+  const FONT_MAX = { body: 1.4, math: 1.4, table: 1.25, tableMath: 1.3 };
+
+  function loadFonts() {
+    const out = Object.assign({}, FONT_DEFAULTS);
+    const saved = store.get("fonts", null);
+    if (saved && typeof saved === "object") {
+      FONT_KEYS.forEach(k => {
+        const v = Number(saved[k]);
+        if (isFinite(v)) out[k] = Math.min(FONT_MAX[k], Math.max(FONT_MIN[k], v));
+      });
+      return out;
+    }
+    /* 旧偏好只有 shuyi.fs = 1/2/3：迁移到正文字号，公式同步旧观感 */
+    const old = String(store.get("fs", "2"));
+    const body = old === "1" ? 1 : old === "3" ? 1.25 : 1.12;
+    out.body = body; out.math = body;
+    return out;
+  }
+  let FONTS = loadFonts();
+
+  function applyFonts(persist) {
+    const root = document.documentElement;
+    root.style.setProperty("--fs-body", FONTS.body);
+    root.style.setProperty("--fs-math", FONTS.math);
+    root.style.setProperty("--fs-table", FONTS.table);
+    root.style.setProperty("--fs-table-math", FONTS.tableMath);
+    $$("#fsheet input[data-font]").forEach(inp => {
+      const k = inp.dataset.font;
+      if (k && FONTS[k]) inp.value = String(Math.round(FONTS[k] * 100));
+    });
+    $$("#fsheet output[data-out]").forEach(o => {
+      const k = o.dataset.out;
+      if (k && FONTS[k]) o.textContent = Math.round(FONTS[k] * 100) + "%";
+    });
+    if (persist !== false) store.set("fonts", FONTS);
     setTimeout(() => { if (S.unit) fitMath($("#doc")); }, 60);
+  }
+
+  function openFontSheet() {
+    const sheet = $("#fsheet");
+    if (!sheet) return;
+    sheet.hidden = false;
+    applyFonts(false);
+    const first = $("#fsheet input[data-font]");
+    if (first) setTimeout(() => { try { first.focus(); } catch (e) {} }, 30);
+  }
+  function closeFontSheet() {
+    const sheet = $("#fsheet");
+    if (sheet) sheet.hidden = true;
   }
 
   /* ================= 主区 ================= */
@@ -637,7 +683,8 @@
       '<span class="spacer"></span>' +
       '<button class="btn' + (S.fav[id] ? " on" : "") + '" id="favBtn">' + (S.fav[id] ? "★" : "☆") + "</button>" +
       '<button class="btn' + (S.done[id] ? " on" : "") + '" id="doneBtn">' + (S.done[id] ? "✓ 已掌握" : "○ 标记掌握") + "</button>" +
-      (u.book === "ex" && /\*\*解\*\*/.test(u.md) ? '<button class="btn" id="accBtn">展开全部</button>' : "");
+      (u.book === "ex" && /\*\*解\*\*/.test(u.md) ? '<button class="btn" id="accBtn">展开全部</button>' : "") +
+      '<button class="btn" id="fsBtnDesk" title="阅读字号">Aa</button>';
 
     $("#favBtn").onclick = () => {
       if (S.fav[id]) delete S.fav[id]; else S.fav[id] = 1;
@@ -660,6 +707,8 @@
     drawBottom(id);
     drawPager(id);
 
+    const fbd = $("#fsBtnDesk");
+    if (fbd) fbd.onclick = openFontSheet;
     const ab = $("#accBtn");
     if (ab) ab.onclick = () => {
       const ds = $$("#doc details.acc");
@@ -803,7 +852,7 @@
     });
 
     /* ---- 手机框架：抽屉 / 底栏 / 字号 / 回顶 ---- */
-    applyFs(store.get("fs", "2"));
+    applyFonts(true);
 
     const mb = $("#menuBtn"), cb = $("#closeSide"), sc = $("#scrim"), tt = $("#topTitle");
     if (mb) mb.onclick = openDrawer;
@@ -812,14 +861,26 @@
     if (sc) sc.onclick = closeDrawer;
 
     const sheet = $("#fsheet");
-    const openSheet = () => { if (sheet) { sheet.hidden = false; applyFs(document.documentElement.dataset.fs); } };
-    const closeSheet = () => { if (sheet) sheet.hidden = true; };
     const fsb = $("#fsBtn"), more = $("#moreBtn"), fsc = $("#fsClose");
-    if (fsb) fsb.onclick = openSheet;
-    if (more) more.onclick = openSheet;
-    if (fsc) fsc.onclick = closeSheet;
-    if (sheet) sheet.onclick = ev => { if (ev.target === sheet) closeSheet(); };
-    $$("#fsRow button").forEach(b => (b.onclick = () => applyFs(b.dataset.fs)));
+    const fscx = $("#fsCloseX"), fsr = $("#fsReset");
+    if (fsb) fsb.onclick = openFontSheet;
+    if (more) more.onclick = openFontSheet;
+    if (fsc) fsc.onclick = closeFontSheet;
+    if (fscx) fscx.onclick = closeFontSheet;
+    if (sheet) sheet.onclick = ev => { if (ev.target === sheet) closeFontSheet(); };
+    if (fsr) fsr.onclick = () => { FONTS = Object.assign({}, FONT_DEFAULTS); applyFonts(true); };
+    $$("#fsheet input[data-font]").forEach(inp => {
+      inp.addEventListener("input", () => {
+        const k = inp.dataset.font;
+        if (!k || !(k in FONTS)) return;
+        const v = Number(inp.value) / 100;
+        FONTS[k] = Math.min(FONT_MAX[k], Math.max(FONT_MIN[k], v));
+        applyFonts(true);
+      });
+    });
+    document.addEventListener("keydown", e => {
+      if (e.key === "Escape" && sheet && !sheet.hidden) closeFontSheet();
+    });
 
     /* 字号面板里补一个深浅色开关 */
     const card = $(".sheet-card");
@@ -828,14 +889,15 @@
       row.className = "fs-row";
       row.style.marginTop = "8px";
       const tb = document.createElement("button");
-      tb.style.gridColumn = "span 3";
       const syncTheme = () => (tb.textContent = document.documentElement.dataset.theme === "dark" ? "☾ 深色：开" : "☀ 深色：关");
       syncTheme();
       tb.onclick = () => {
         const t = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
         document.documentElement.dataset.theme = t; store.set("theme", t); syncTheme();
       };
-      row.appendChild(tb); card.insertBefore(row, $("#fsClose"));
+      row.appendChild(tb);
+      const actions = card.querySelector(".sheet-actions");
+      if (actions) card.insertBefore(row, actions); else card.appendChild(row);
     }
 
     /* 回顶 */

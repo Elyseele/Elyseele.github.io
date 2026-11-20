@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN" data-theme="light" data-fs="2">
+<html lang="zh-CN" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -78,15 +78,34 @@
   <button id="toTop" hidden aria-label="回到顶部">↑</button>
 
   <div id="fsheet" hidden>
-    <div class="sheet-card">
-      <div class="sheet-title">阅读字号</div>
-      <div class="fs-row" id="fsRow">
-        <button data-fs="1">小</button>
-        <button data-fs="2">标准</button>
-        <button data-fs="3">大</button>
+    <div class="sheet-card" role="dialog" aria-modal="true" aria-labelledby="fsTitle">
+      <div class="sheet-head">
+        <div class="sheet-title" id="fsTitle">阅读字号</div>
+        <button id="fsCloseX" aria-label="关闭字号面板">✕</button>
       </div>
-      <div class="sheet-tip">公式与正文一起缩放；单行公式太宽时可以左右滑动。</div>
-      <button id="fsClose" class="sheet-ok">好</button>
+      <div class="fs-controls">
+        <label class="fs-ctl">正文
+          <input type="range" data-font="body" min="90" max="140" step="2" aria-label="正文字号">
+          <output data-out="body">112%</output>
+        </label>
+        <label class="fs-ctl">普通公式
+          <input type="range" data-font="math" min="85" max="140" step="2" aria-label="普通公式字号">
+          <output data-out="math">112%</output>
+        </label>
+        <label class="fs-ctl">表格文字
+          <input type="range" data-font="table" min="85" max="125" step="2" aria-label="表格文字字号">
+          <output data-out="table">100%</output>
+        </label>
+        <label class="fs-ctl">表格内公式
+          <input type="range" data-font="tableMath" min="85" max="130" step="2" aria-label="表格内公式字号">
+          <output data-out="tableMath">112%</output>
+        </label>
+      </div>
+      <div class="sheet-tip">四项各自独立，互不倍乘；表格内公式只受「表格内公式」控制。超宽公式可左右滑动。</div>
+      <div class="sheet-actions">
+        <button id="fsReset">恢复默认</button>
+        <button id="fsClose" class="sheet-ok">好</button>
+      </div>
     </div>
   </div>
 </div>
@@ -113,7 +132,7 @@
       "网址协议：" + location.protocol,
       "浏览器：" + navigator.userAgent,
       "题库已载入：" + (window.DATA ? "是（" + (window.DATA.problems || []).length + " 题）" : "否"),
-      "markdown 引擎：" + (typeof window.marked === "function" ? "正常" : "缺失"),
+      "markdown 引擎：" + (typeof window.marked?.parse === "function" ? "正常" : "缺失"),
       "公式引擎：" + (window.katex ? "正常" : "缺失"),
       "报错：" + (errs.length ? errs.join(" ｜ ") : "无")
     ].join("\n");
