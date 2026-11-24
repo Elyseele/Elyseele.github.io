@@ -300,7 +300,21 @@
 
   function renderUnit(u) {
     const root = $("#doc");
-    if (u.book !== "ex") { render(u.md, root); miniToc(root); relatedInto(root, u); return; }
+    if (u.book !== "ex") {
+      /* 知识点：正文 + 右侧"本节目录"栏（窄屏时目录自动回到正文上方） */
+      root.innerHTML = "";
+      const main = document.createElement("div");
+      main.className = "doc-main";
+      const rail = document.createElement("aside");
+      rail.className = "doc-rail";
+      root.classList.add("has-rail");
+      root.append(main, rail);
+      render(u.md, main);
+      relatedInto(main, u);
+      miniToc(main, rail);
+      return;
+    }
+    root.classList.remove("has-rail");
     const meta = metaOf(u.md);
     const parts = splitQ(meta.md);
     root.innerHTML = "";
@@ -311,10 +325,13 @@
     fitMath(root);
   }
 
-  /* 长小节自动生成"本节目录"（正文 h3 足够多时才出） */
-  function miniToc(root) {
+  /* 长小节自动生成"本节目录"（正文 h3 足够多时才出）——放进右侧栏 */
+  function miniToc(root, rail) {
     const hs = $$("h3", root);
-    if (hs.length < 5) return;
+    if (!rail) return;
+    rail.innerHTML = "";
+    if (hs.length < 5) { rail.hidden = true; return; }
+    rail.hidden = false;
     const d = document.createElement("details");
     d.className = "minitoc";
     const sm = document.createElement("summary");
@@ -331,9 +348,7 @@
       li.appendChild(a); ol.appendChild(li);
     });
     d.appendChild(ol);
-    const anchor = $$("h2", root)[0];
-    if (anchor && anchor.nextSibling) root.insertBefore(d, anchor.nextSibling);
-    else root.insertBefore(d, root.firstChild);
+    rail.appendChild(d);
   }
 
   /* ================= 检索索引 ================= */
@@ -732,6 +747,7 @@
   function drawTable() {
     const pool = topicProblems();
     const chapters = Array.from(new Set(pool.map(p => p.chapter)));
+    $("#doc").classList.remove("has-rail");
     $("#crumb").innerHTML = "<b>题目总表 · " + esc(TT[S.topic] || "") + "</b><span class='spacer'></span><span>" +
       pool.length + " 题 · 已掌握 " + pool.filter(p => S.done[p.id]).length + "</span>";
     $("#doc").innerHTML =
