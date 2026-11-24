@@ -522,6 +522,15 @@ table.qtable input[type=checkbox] { cursor: pointer; }
   #doc.has-rail .doc-rail .minitoc { margin: .9em 0 1.2em; }
 }
 
+
+/* 站内跳转链接（预测章里的知识点/题目链接） */
+#doc a.u-link {
+  color: var(--accent); text-decoration: none;
+  border-bottom: 1px dashed color-mix(in srgb, var(--accent) 55%, transparent);
+  cursor: pointer;
+}
+#doc a.u-link:hover { border-bottom-style: solid; }
+
 /* 节内小目录 */
 #doc .minitoc {
   margin: .9em 0 1.2em; border: 1px solid var(--line); border-radius: 10px;

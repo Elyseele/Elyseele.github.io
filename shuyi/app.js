@@ -298,6 +298,18 @@
     root.appendChild(sec);
   }
 
+  /* 站内跳转链接：md 里写 [文字](#/unit/<unitId>) 即可跳到任意单元 */
+  function installUnitLinks(root) {
+    $$("a[href^='#/unit/']", root).forEach(a => {
+      a.classList.add("u-link");
+      a.onclick = ev => {
+        ev.preventDefault();
+        const id = decodeURIComponent(a.getAttribute("href").slice(7));
+        if (D.units[id]) openUnit(id, true);
+      };
+    });
+  }
+
   function renderUnit(u) {
     const root = $("#doc");
     if (u.book !== "ex") {
@@ -310,6 +322,7 @@
       root.classList.add("has-rail");
       root.append(main, rail);
       render(u.md, main);
+      installUnitLinks(main);
       relatedInto(main, u);
       miniToc(main, rail);
       return;
@@ -322,6 +335,7 @@
     root.appendChild(buildPart(parts.q));
     if (parts.hint) root.appendChild(wrapAcc(buildPart(parts.hint), "考点细则（先自己想）", "hint"));
     if (parts.sol) root.appendChild(wrapAcc(buildPart(parts.sol), "展开解析（解 + 答案）", "sol"));
+    installUnitLinks(root);
     fitMath(root);
   }
 
