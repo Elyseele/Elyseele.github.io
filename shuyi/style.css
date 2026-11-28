@@ -62,9 +62,13 @@ body {
 }
 .brand small { display: block; font-weight: 400; font-size: 12px; color: var(--text-2); letter-spacing: 0; }
 
-.topicbar { padding: 0 12px 8px; }
+.topicbar {
+  padding: 0 12px 10px; display: grid; gap: 6px 8px;
+  grid-template-columns: 2.6em minmax(0, 1fr); align-items: center;
+}
+.topicbar label { font-size: 12px; color: var(--text-2); }
 .topicbar select {
-  width: 100%; padding: 8px 10px; font-size: 13px; cursor: pointer;
+  width: 100%; padding: 8px 26px 8px 9px; font-size: 13px; cursor: pointer;
   color: var(--text); background: var(--panel-2); border: 1px solid var(--line);
   border-radius: 9px; outline: none; appearance: none;
   background-image: linear-gradient(45deg, transparent 50%, var(--text-2) 50%), linear-gradient(135deg, var(--text-2) 50%, transparent 50%);
@@ -148,6 +152,10 @@ main { overflow: auto; scroll-behavior: smooth; }
 }
 #crumb b { color: var(--text); font-weight: 600; }
 #crumb .spacer { flex: 1; }
+#crumb .crumb-trail {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+#crumb .btn { flex: none; white-space: nowrap; }
 .btn {
   background: var(--panel); border: 1px solid var(--line); color: var(--text-2);
   border-radius: 8px; padding: 4px 10px; font-size: 12.5px; cursor: pointer;
@@ -179,6 +187,15 @@ main { overflow: auto; scroll-behavior: smooth; }
 /* 示意图（内联 SVG，跟随主题色） */
 #doc figure.fig { margin: 1.1em 0; }
 #doc figure.fig .fig-svg { display: block; width: 100%; height: auto; max-height: 300px; }
+#doc figure.dsp-fig { margin: 1.1em auto 1.35em; max-width: 520px; }
+#doc figure.dsp-fig .fig-svg { max-height: none; }
+#doc h3 { scroll-margin-top: 66px; }
+#doc h3[tabindex="-1"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+.dsp-example-btn { white-space: nowrap; }
+@media (max-width: 860px) {
+  .topicbar select { min-height: 40px; }
+  #doc h3 { scroll-margin-top: calc(var(--topbar-h) + 16px); }
+}
 #doc figure.fig figcaption {
   margin-top: 2px; font-size: 12.5px; line-height: 1.6; color: var(--text-2); text-align: center;
 }
@@ -270,7 +287,8 @@ table.qtable input[type=checkbox] { cursor: pointer; }
     padding-bottom: calc(var(--bottombar-h) + env(safe-area-inset-bottom, 0px) + 8px);
   }
   #doc { padding: 16px 14px 40px; }
-  #crumb { padding: 10px 14px; }
+  #crumb { position: static; padding: 8px 14px; }
+  #crumb .btn { min-height: 34px; }
   #pager { padding: 0 14px 30px; }
 }
 

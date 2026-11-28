@@ -391,7 +391,9 @@
       const p0 = Math.max(0, src.toLowerCase().indexOf(key) - 34);
       hits.push({ id: it.id, title: it.title, seg: src.slice(p0, p0 + 110), n: n, topic: it.topic });
     });
-    hits.sort((a, b) => b.n - a.n);
+    const rank = hit => (subjectOf(hit.topic) === subjectOf(S.topic) ? 4 : 0)
+      + (isDspCourse(hit.topic) ? 2 : 0) + hit.n;
+    hits.sort((a, b) => rank(b) - rank(a));
     return hits.slice(0, 40);
   }
 
@@ -422,26 +424,84 @@
     store.set("open", S.open);
   }
 
-  function drawTopics() {
-    const sel = $("#topicSel");
-    if (!sel) return;
-    // 按科目分组（高数 / 概率论 / 线代…）
-    const groups = [];
-    TOPICS.forEach(t => {
-      const key = t.subject || "其他";
-      let g = groups.find(x => x.name === key);
-      if (!g) { g = { name: key, items: [] }; groups.push(g); }
-      g.items.push(t);
+  const topicOf = id => TOPICS.find(t => t.id === id);
+  const subjectOf = id => (topicOf(id) || {}).subject || "其他";
+  const isDspCourse = id => subjectOf(id) === "819 DSP";
+  const hasInlineExample = u => u && isDspCourse(u.topic) && /^\d+\.\d+\s/.test(u.title);
+  const subjectVisits = store.get("subjectVisits", {}) || {};
+
+  function syncViewButtons() {
+    const inlineExample = isDspCourse(S.topic);
+    $$(".views button").forEach(b => {
+      const view = b.dataset.view;
+      b.classList.toggle("on", view === S.view);
+      if (view === "ex") {
+        b.textContent = inlineExample ? "本节例题" : "例题";
+        b.hidden = inlineExample && !hasInlineExample(D.units[S.unit]);
+      }
+      if (view === "table") b.hidden = inlineExample;
     });
-    const opt = t => '<option value="' + t.id + '"' + (t.id === S.topic ? " selected" : "") + ">" +
-      esc(t.title) + "（" + problemCount(t.id) + " 题）</option>";
-    sel.innerHTML = groups.map(g =>
-      '<optgroup label="' + esc(g.name) + '">' + g.items.map(opt).join("") + "</optgroup>").join("");
-    sel.onchange = () => {
-      S.topic = sel.value; store.set("topic", S.topic);
-      S.unit = null;
-      drawViews(); drawTopTitle();
+  }
+
+  function showInlineExample() {
+    const heading = $$("#doc h3").find(h => h.textContent.trim().startsWith("例题"));
+    if (!heading) return;
+    closeDrawer();
+    heading.tabIndex = -1;
+    heading.focus({ preventScroll: true });
+    heading.scrollIntoView({ block: "start" });
+  }
+
+  function pickTopic(id) {
+    const t = topicOf(id);
+    if (!t) return;
+    if (S.unit) saveScroll(S.unit);
+    S.topic = t.id;
+    S.unit = null;
+    if (isDspCourse(id) || (S.view === "ex" && !t.ex)) S.view = "kp";
+    store.set("topic", S.topic);
+    store.set("view", S.view);
+    drawTopics();
+    drawViews();
+    drawTopTitle();
+    if (S.unit && D.units[S.unit]) {
+      store.set("unit", S.unit);
+      const want = hashOf(S.unit);
+      if (location.hash !== want) {
+        try { history.pushState({ shuyiUnit: S.unit }, "", want); }
+        catch (e) { location.hash = want; }
+      }
+    }
+  }
+
+  function drawTopics() {
+    const chapter = $("#topicSel"), subject = $("#subjectSel");
+    if (!chapter || !subject) return;
+    const active = topicOf(S.topic) || TOPICS[0];
+    const key = subjectOf(active.id);
+    const available = Array.from(new Set(TOPICS.map(t => subjectOf(t.id))));
+    const order = Array.from(new Set([...(D.subjects || []), ...available]))
+      .filter(name => available.includes(name));
+    const option = (value, label, selected) =>
+      '<option value="' + esc(value) + '"' + (selected ? " selected" : "") + '>' + esc(label) + '</option>';
+    subject.innerHTML = order.map(name => option(name, name, name === key)).join("");
+    const items = TOPICS.filter(t => subjectOf(t.id) === key);
+    chapter.innerHTML = items.map(t => option(t.id, t.title, t.id === active.id)).join("");
+    chapter.title = active.title;
+    subjectVisits[key] = active.id;
+    store.set("subjectVisits", subjectVisits);
+    chapter.onchange = () => pickTopic(chapter.value);
+    subject.onchange = () => {
+      const inSubject = TOPICS.filter(t => subjectOf(t.id) === subject.value);
+      const saved = inSubject.find(t => t.id === subjectVisits[subject.value]);
+      if (inSubject.length) pickTopic((saved || inSubject[0]).id);
     };
+  }
+
+  function readerOrder(id) {
+    return (D.dspReading || []).includes(id)
+      ? D.dspReading
+      : flatList().filter(x => !/preface$/.test(x));
   }
 
   function drawTree(scrollToCur) {
@@ -616,12 +676,17 @@
   function drawBottom(id) {
     const bar = $("#bottombar");
     if (!bar) return;
-    const list = flatList().filter(x => !/preface$/.test(x));
+    const list = readerOrder(id);
     const i = list.indexOf(id);
     const prev = i > 0 ? list[i - 1] : null;
     const next = i >= 0 && i < list.length - 1 ? list[i + 1] : null;
     const pb = bar.querySelector('[data-nav="prev"]'), nb = bar.querySelector('[data-nav="next"]');
     pb.disabled = !prev; nb.disabled = !next;
+    const section = isDspCourse(S.topic);
+    pb.textContent = section ? "‹ 上一节" : "‹ 上一题";
+    nb.textContent = section ? "下一节 ›" : "下一题 ›";
+    pb.title = prev ? D.units[prev].title : "";
+    nb.title = next ? D.units[next].title : "";
     pb.onclick = () => prev && goUnit(prev);
     nb.onclick = () => next && goUnit(next);
     const pos = $("#bbPos");
@@ -636,7 +701,7 @@
     const v = S.view === "kp" ? "知识点" : S.view === "ex" ? "例题" : "总表";
     t.textContent = (TT[S.topic] || "数一 · 大观") + " · " + v;
     const sub = $("#brandSub");
-    if (sub) sub.textContent = TT[S.topic] || "";
+    if (sub) sub.textContent = subjectOf(S.topic);
   }
 
   /* ---- 阅读字号：正文 / 普通公式 / 表格文字 / 表格内公式，各自独立 ---- */
@@ -700,7 +765,17 @@
     if (!u) return;
     const prevId = S.unit;
     if (prevId && prevId !== id) saveScroll(prevId);
+    if (S.topic !== u.topic) {
+      S.topic = u.topic;
+      store.set("topic", S.topic);
+      drawTopics();
+    }
+    if (S.view !== u.book) {
+      S.view = u.book;
+      store.set("view", S.view);
+    }
     S.unit = id;
+    syncViewButtons();
     if (push) store.set("unit", id);
     expandPath(id);
     drawTree(true);
@@ -708,12 +783,16 @@
 
     const crumbArr = [TT[u.topic] || "全部"].concat(u.crumbs);
     $("#crumb").innerHTML =
+      '<span class="crumb-trail">' +
       crumbArr.map((c, i) => (i === crumbArr.length - 1 ? "<b>" + esc(c) + "</b>" : esc(c))).join(" › ") +
-      '<span class="spacer"></span>' +
+      '</span>' +
       '<button class="btn' + (S.fav[id] ? " on" : "") + '" id="favBtn">' + (S.fav[id] ? "★" : "☆") + "</button>" +
       '<button class="btn' + (S.done[id] ? " on" : "") + '" id="doneBtn">' + (S.done[id] ? "✓ 已掌握" : "○ 标记掌握") + "</button>" +
       (u.book === "ex" && /\*\*解\*\*/.test(u.md) ? '<button class="btn" id="accBtn">展开全部</button>' : "") +
+      (hasInlineExample(u) ? '<button class="btn dsp-example-btn" id="dspExample">本节例题</button>' : "") +
       '<button class="btn" id="fsBtnDesk" title="阅读字号">Aa</button>';
+    const exampleBtn = $("#dspExample");
+    if (exampleBtn) exampleBtn.onclick = showInlineExample;
 
     $("#favBtn").onclick = () => {
       if (S.fav[id]) delete S.fav[id]; else S.fav[id] = 1;
@@ -748,7 +827,8 @@
   }
 
   function drawPager(id) {
-    const flat = flatList(), i = flat.indexOf(id), p = $("#pager");
+    const flat = (D.dspReading || []).includes(id) ? readerOrder(id) : flatList();
+    const i = flat.indexOf(id), p = $("#pager");
     const prev = i > 0 ? D.units[flat[i - 1]] : null;
     const next = i >= 0 && i < flat.length - 1 ? D.units[flat[i + 1]] : null;
     p.innerHTML =
@@ -815,7 +895,7 @@
     box.hidden = false; $("#tree").hidden = true;
     box.innerHTML = hits.length
       ? hits.map(h => '<div class="hit" data-id="' + h.id + '"><div class="t">' + esc(h.title) +
-          ' <span class="meta">· ' + esc(TT[h.topic] || "") + " · " + h.n + " 处</span></div><div class=\"s\">" +
+          ' <span class="meta">· ' + esc(subjectOf(h.topic)) + " / " + esc(TT[h.topic] || "") + " · " + h.n + " 处</span></div><div class=\"s\">" +
           markSeg(h.seg, S.q) + "</div></div>").join("")
       : '<div class="empty">没有匹配的内容</div>';
     $$(".hit", box).forEach(el => (el.onclick = () => {
@@ -835,7 +915,7 @@
   }
 
   function drawViews() {
-    $$(".views button").forEach(b => b.classList.toggle("on", b.dataset.view === S.view));
+    syncViewButtons();
     $("#results").hidden = true;
     $("#tree").hidden = false;
     if (S.view === "table") { drawTable(); drawTree(); return; }
@@ -865,6 +945,7 @@
       aa.onclick = () => { S.autoOpen = !S.autoOpen; store.set("autoOpen", S.autoOpen); sync(); if (S.unit) openUnit(S.unit, false); };
     }
     $$(".views button").forEach(b => (b.onclick = () => {
+      if (b.dataset.view === "ex" && isDspCourse(S.topic)) { showInlineExample(); return; }
       S.view = b.dataset.view; store.set("view", S.view); S.q = ""; $("#q").value = ""; drawViews();
     }));
     const q = $("#q");
